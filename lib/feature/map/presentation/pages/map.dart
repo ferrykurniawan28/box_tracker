@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -49,8 +51,9 @@ class _MapPageState extends State<MapPage> {
 
   Widget _buildMap(MapDataLoaded mapState) {
     final locks = mapState.mapData.locks;
+    final receivers =
+        mapState.mapData.receivers; // NEW: Get receivers from data
     final deviceLocation = mapState.mapData.deviceLocation;
-    final receiverLatLng = const LatLng(-6.218987, 106.801851);
 
     // Build markers
     final markers = <Marker>[];
@@ -163,63 +166,65 @@ class _MapPageState extends State<MapPage> {
       );
     }
 
-    // Add receiver location marker
-    markers.add(
-      Marker(
-        point: receiverLatLng,
-        width: 120,
-        height: 100,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.9),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.radar,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: const Text(
-                "RECEIVER",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+    // Add markers for all receivers
+    for (final receiver in receivers) {
+      markers.add(
+        Marker(
+          point: LatLng(receiver.latitude, receiver.longitude),
+          width: 120,
+          height: 100,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.radar,
+                  color: Colors.white,
+                  size: 24,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  receiver.deviceId ?? "RECEIVER",
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     // Add device location marker if available
     if (deviceLocation != null) {
@@ -305,34 +310,69 @@ class _MapPageState extends State<MapPage> {
         );
       }
 
-      // Receiver to lock route
-      if (lockInfo.receiverToLockRoute.isNotEmpty) {
-        polylines.add(
-          Polyline(
-            points: lockInfo.receiverToLockRoute,
-            strokeWidth: isSelected ? 7.0 : 5.0,
-            color: Colors.blue.withOpacity(isSelected ? 0.8 : 0.7),
-            borderStrokeWidth: isSelected ? 2.5 : 1.5,
-            borderColor: Colors.white.withOpacity(0.8),
-          ),
-        );
+      // Receiver to lock routes (from multiple receivers)
+      final receiverRoutes = lockInfo.receiverToLockRoutes;
+      if (receiverRoutes.isNotEmpty) {
+        // Use different colors for different receivers
+        final receiverColors = [
+          Colors.blue,
+          Colors.green,
+          Colors.purple,
+          Colors.teal,
+          Colors.indigo,
+        ];
+
+        int colorIndex = 0;
+        for (final entry in receiverRoutes.entries) {
+          final route = entry.value;
+
+          if (route.isNotEmpty) {
+            final color = receiverColors[colorIndex % receiverColors.length];
+            polylines.add(
+              Polyline(
+                points: route,
+                strokeWidth: isSelected ? 7.0 : 5.0,
+                color: color.withOpacity(isSelected ? 0.8 : 0.7),
+                borderStrokeWidth: isSelected ? 2.5 : 1.5,
+                borderColor: Colors.white.withOpacity(0.8),
+              ),
+            );
+            colorIndex++;
+          }
+        }
       }
     }
 
     // Fallback to simple polylines if no routes available
-    if (polylines.isEmpty && locks.isNotEmpty) {
-      for (final lockInfo in locks) {
-        final lockLatLng =
-            LatLng(lockInfo.location.latitude, lockInfo.location.longitude);
-        final polylinePoints = [receiverLatLng, lockLatLng];
-        polylines.add(
-          Polyline(
-            points: polylinePoints,
-            strokeWidth: 4.0,
-            color: Colors.red.withOpacity(0.5),
-            strokeCap: StrokeCap.round,
-          ),
-        );
+    if (polylines.isEmpty && locks.isNotEmpty && receivers.isNotEmpty) {
+      // Create direct lines from each receiver to each lock
+      final receiverColors = [
+        Colors.red,
+        Colors.orange,
+        Colors.pink,
+        Colors.brown
+      ];
+
+      for (int receiverIndex = 0;
+          receiverIndex < receivers.length;
+          receiverIndex++) {
+        final receiver = receivers[receiverIndex];
+        final receiverLatLng = LatLng(receiver.latitude, receiver.longitude);
+        final color = receiverColors[receiverIndex % receiverColors.length];
+
+        for (final lockInfo in locks) {
+          final lockLatLng =
+              LatLng(lockInfo.location.latitude, lockInfo.location.longitude);
+          final polylinePoints = [receiverLatLng, lockLatLng];
+          polylines.add(
+            Polyline(
+              points: polylinePoints,
+              strokeWidth: 4.0,
+              color: color.withOpacity(0.5),
+              strokeCap: StrokeCap.round,
+            ),
+          );
+        }
       }
     }
 
@@ -342,7 +382,9 @@ class _MapPageState extends State<MapPage> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: receiverLatLng,
+            initialCenter: receivers.isNotEmpty
+                ? LatLng(receivers.first.latitude, receivers.first.longitude)
+                : const LatLng(-6.218987, 106.801851), // Fallback to Jakarta
             initialZoom: 15.0,
             onTap: (_, __) {
               // Close info panel when tapping on empty map area
@@ -351,8 +393,13 @@ class _MapPageState extends State<MapPage> {
               }
             },
             onMapReady: () {
-              // Center map on receiver location when ready
-              _mapController.move(receiverLatLng, 15.0);
+              // Center map on first receiver location when ready
+              if (receivers.isNotEmpty) {
+                final firstReceiver = receivers.first;
+                _mapController.move(
+                    LatLng(firstReceiver.latitude, firstReceiver.longitude),
+                    15.0);
+              }
             },
           ),
           children: [
@@ -560,9 +607,9 @@ class _MapPageState extends State<MapPage> {
         if (state is! MapDataLoaded) return const SizedBox.shrink();
 
         final routesCount = state.mapData.locks.fold<int>(0, (count, lock) {
-          return count +
-              (lock.deviceToLockRoute.isNotEmpty ? 1 : 0) +
-              (lock.receiverToLockRoute.isNotEmpty ? 1 : 0);
+          final deviceRoutes = lock.deviceToLockRoute.isNotEmpty ? 1 : 0;
+          final receiverRoutes = lock.receiverToLockRoutes.length;
+          return count + deviceRoutes + receiverRoutes;
         });
 
         return Container(
@@ -619,7 +666,11 @@ class _MapPageState extends State<MapPage> {
               const SizedBox(height: 8),
               _buildLegendItem('Device to Lock', Colors.orange),
               const SizedBox(height: 4),
-              _buildLegendItem('Receiver to Lock', Colors.blue),
+              _buildLegendItem('Receiver 1 to Lock', Colors.blue),
+              const SizedBox(height: 4),
+              _buildLegendItem('Receiver 2 to Lock', Colors.green),
+              const SizedBox(height: 4),
+              _buildLegendItem('Receiver 3+ to Lock', Colors.purple),
               const SizedBox(height: 4),
               _buildLegendItem('Direct Line', Colors.red),
             ],

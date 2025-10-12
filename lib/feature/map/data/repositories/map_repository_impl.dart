@@ -59,6 +59,49 @@ class MapRepositoryImpl implements MapRepository {
   }
 
   @override
+  Future<List<MapLocation>> fetchReceiverLocations() async {
+    if (_useDummyData) {
+      // Generate multiple dummy receivers for testing
+      final List<MapLocation> receivers = [];
+
+      // Generate 2 dummy receivers with different locations around Jakarta
+      final receiverPositions = [
+        {"lat": -6.218987, "lng": 106.801851, "id": "RECEIVER_001"},
+        {"lat": -6.200000, "lng": 106.816666, "id": "RECEIVER_002"},
+      ];
+
+      for (int i = 0; i < receiverPositions.length; i++) {
+        final pos = receiverPositions[i];
+        receivers.add(MapLocation(
+          latitude: pos["lat"] as double,
+          longitude: pos["lng"] as double,
+          lockStatus: "receiver", // Identify as receiver
+          timestamp: DateTime.now().subtract(Duration(minutes: i * 2)),
+          deviceId: pos["id"] as String,
+        ));
+      }
+
+      return receivers;
+    } else {
+      // Real implementation would fetch multiple receivers from Firebase
+      try {
+        // For now, return single hardcoded receiver for compatibility
+        final receiver = MapLocation(
+          latitude: -6.218987,
+          longitude: 106.801851,
+          lockStatus: "receiver",
+          timestamp: DateTime.now(),
+          deviceId: "RECEIVER_001",
+        );
+        return [receiver];
+      } catch (e) {
+        // Return empty list on error
+        return [];
+      }
+    }
+  }
+
+  @override
   Future<MapLocation> fetchLockLocation() async {
     if (_useDummyData) {
       // Use dummy data

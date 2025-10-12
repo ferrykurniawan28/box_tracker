@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:lockguard/app/app_module.dart';
 import 'package:lockguard/app/app_widget.dart';
-import 'package:permission_handler/permission_handler.dart'; // Import permission_handler
-import 'firebase_options.dart'; // Import the generated Firebase options file
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

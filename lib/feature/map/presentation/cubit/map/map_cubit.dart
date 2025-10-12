@@ -15,8 +15,8 @@ class MapCubit extends Cubit<MapState> {
   Timer? _trackingTimer;
   Timer? _countdownTimer;
 
-  // TODO: Update receiver location as needed
-  static const LatLng receiverLocation = LatLng(-6.218987, 106.801851);
+  // TODO: Remove this hardcoded receiver - now using dynamic receivers
+  // static const LatLng receiverLocation = LatLng(-6.218987, 106.801851);
 
   MapCubit(this._mapRepository, this._osrmService) : super(MapInitial());
 
@@ -25,6 +25,8 @@ class MapCubit extends Cubit<MapState> {
 
     try {
       final lockLocations = await _mapRepository.fetchLockLocations();
+      final receiverLocations =
+          await _mapRepository.fetchReceiverLocations(); // NEW: Fetch receivers
       final deviceLocation = await _mapRepository.fetchDeviceLocation();
 
       // Convert lock locations to LockInfo objects
@@ -42,9 +44,10 @@ class MapCubit extends Cubit<MapState> {
             )
           : "No locks available";
 
-      // Create initial MapData with multiple locks
+      // Create initial MapData with multiple locks and receivers
       final mapData = MapData(
         locks: locks,
+        receivers: receiverLocations, // NEW: Include receivers
         deviceLocation: deviceLocation,
         distanceInfo: distanceInfo,
         isTracking: false,
@@ -146,6 +149,7 @@ class MapCubit extends Cubit<MapState> {
     if (currentState is! MapDataLoaded) return;
 
     final locks = currentState.mapData.locks;
+    final receivers = currentState.mapData.receivers;
     final deviceLocation = currentState.mapData.deviceLocation;
 
     // Set loading state
@@ -161,21 +165,32 @@ class MapCubit extends Cubit<MapState> {
       // Calculate routes for each lock
       for (final lockInfo in locks) {
         List<LatLng> deviceToLockRoute = [];
-        List<LatLng> receiverToLockRoute = [];
+        Map<String, List<LatLng>> receiverToLockRoutes = {};
 
         final lockLatLng =
             LatLng(lockInfo.location.latitude, lockInfo.location.longitude);
 
-        // Get route from receiver to this lock location
-        try {
-          final receiverRoute = await _osrmService.getRoute(
-            start: receiverLocation,
-            end: lockLatLng,
-          );
-          receiverToLockRoute = receiverRoute.routes.first.polylinePoints;
-        } catch (e) {
-          print(
-              "Error getting receiver route to ${lockInfo.location.deviceId}: $e");
+        // Get routes from ALL receivers to this lock location
+        for (final receiver in receivers) {
+          try {
+            final receiverLatLng =
+                LatLng(receiver.latitude, receiver.longitude);
+            final receiverId =
+                receiver.deviceId ?? "RECEIVER_${receivers.indexOf(receiver)}";
+
+            final receiverRoute = await _osrmService.getRoute(
+              start: receiverLatLng,
+              end: lockLatLng,
+            );
+
+            receiverToLockRoutes[receiverId] =
+                receiverRoute.routes.first.polylinePoints;
+            print(
+                "Loaded route from $receiverId to ${lockInfo.location.deviceId}");
+          } catch (e) {
+            print(
+                "Error getting route from ${receiver.deviceId} to ${lockInfo.location.deviceId}: $e");
+          }
         }
 
         // Get route from device to this lock location (if device location is available)
@@ -197,7 +212,7 @@ class MapCubit extends Cubit<MapState> {
         // Create updated lock info with routes
         updatedLocks.add(lockInfo.copyWith(
           deviceToLockRoute: deviceToLockRoute,
-          receiverToLockRoute: receiverToLockRoute,
+          receiverToLockRoutes: receiverToLockRoutes,
         ));
       }
 

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../data/models/map_data.dart';
+import '../../data/models/map_location.dart'; // Add MapLocation import
 
 class LocationInfoPanel extends StatelessWidget {
   final MapData mapData;
@@ -29,6 +30,11 @@ class LocationInfoPanel extends StatelessWidget {
     }
 
     final lockLocation = lockInfo.location;
+    // Find the nearest receiver for route information
+    final nearestReceiver = _findNearestReceiver(lockInfo, mapData.receivers);
+    final nearestReceiverRoute = nearestReceiver != null
+        ? lockInfo.receiverToLockRoutes[nearestReceiver.deviceId] ?? []
+        : [];
 
     return Card(
       elevation: 8,
@@ -104,7 +110,7 @@ class LocationInfoPanel extends StatelessWidget {
 
             // Route Information Section
             if (lockInfo.deviceToLockRoute.isNotEmpty ||
-                lockInfo.receiverToLockRoute.isNotEmpty) ...[
+                nearestReceiverRoute.isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildSectionHeader("Route Information"),
               const SizedBox(height: 8),
@@ -115,13 +121,23 @@ class LocationInfoPanel extends StatelessWidget {
                   Colors.orange,
                 ),
               ],
-              if (lockInfo.receiverToLockRoute.isNotEmpty) ...[
+              if (nearestReceiverRoute.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 _buildRouteInfo(
-                  "Receiver to Lock",
-                  _calculateRouteDistance(lockInfo.receiverToLockRoute),
+                  nearestReceiver != null
+                      ? "Nearest Receiver (${nearestReceiver.deviceId ?? 'Unknown'}) to Lock"
+                      : "Receiver to Lock",
+                  _calculateRouteDistance(nearestReceiverRoute.cast<LatLng>()),
                   Colors.blue,
                 ),
+                if (nearestReceiver != null) ...[
+                  const SizedBox(height: 4),
+                  _buildInfoRow(
+                    "Direct Distance:",
+                    _formatDistance(_calculateDistanceBetweenPoints(
+                        nearestReceiver, lockInfo.location)),
+                  ),
+                ],
               ],
             ],
 
@@ -464,6 +480,51 @@ class LocationInfoPanel extends StatelessWidget {
       return "${difference.inHours}h ago";
     } else {
       return "${difference.inDays}d ago";
+    }
+  }
+
+  // Find the nearest receiver to the lock
+  MapLocation? _findNearestReceiver(
+      LockInfo lockInfo, List<MapLocation> receivers) {
+    if (receivers.isEmpty) return null;
+
+    MapLocation? nearestReceiver;
+    double minDistance = double.infinity;
+
+    for (final receiver in receivers) {
+      final distance = _calculateDistance(
+        lockInfo.location.latitude,
+        lockInfo.location.longitude,
+        receiver.latitude,
+        receiver.longitude,
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestReceiver = receiver;
+      }
+    }
+
+    return nearestReceiver;
+  }
+
+  // Calculate distance between two points
+  double _calculateDistanceBetweenPoints(
+      MapLocation point1, MapLocation point2) {
+    return _calculateDistance(
+      point1.latitude,
+      point1.longitude,
+      point2.latitude,
+      point2.longitude,
+    );
+  }
+
+  // Format distance from meters to human readable format
+  String _formatDistance(double distanceInMeters) {
+    if (distanceInMeters < 1000) {
+      return "${distanceInMeters.round()} m";
+    } else {
+      return "${(distanceInMeters / 1000).toStringAsFixed(1)} km";
     }
   }
 }

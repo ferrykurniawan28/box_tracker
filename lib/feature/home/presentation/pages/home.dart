@@ -13,10 +13,19 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   @override
+  void initState() {
+    super.initState();
+    // Navigate to the initial route (Map)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Modular.to.navigate('/home/map');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
       builder: (context, state) {
-        final currentIndex = state is HomeTabChanged ? state.currentIndex : 3;
+        final currentIndex = state is HomeTabChanged ? state.currentIndex : 0;
 
         return Scaffold(
           body: RouterOutlet(),
@@ -25,28 +34,27 @@ class _HomePageState extends State<HomePage> {
             onTap: (index) {
               switch (index) {
                 case 0:
-                  Modular.to.navigate('/home/');
+                  Modular.to.navigate('/home/map');
                   ReadContext(context).read<HomeCubit>().changeTab(0);
                   break;
                 case 1:
-                  Modular.to.navigate('/home/map');
+                  Modular.to.navigate('/home/history');
                   ReadContext(context).read<HomeCubit>().changeTab(1);
                   break;
                 case 2:
-                  Modular.to.navigate('/home/history');
+                  Modular.to.navigate('/home/account');
                   ReadContext(context).read<HomeCubit>().changeTab(2);
                   break;
-                case 3:
-                  Modular.to.navigate('/home/account');
-                  ReadContext(context).read<HomeCubit>().changeTab(3);
-                  break;
+                // case 3:
+                //   Modular.to.navigate('/home/account');
+                //   ReadContext(context).read<HomeCubit>().changeTab(3);
+                //   break;
               }
             },
             backgroundColor: Colors.black,
             selectedItemColor: Colors.blueAccent,
             unselectedItemColor: Colors.grey,
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
               BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
               BottomNavigationBarItem(
                   icon: Icon(Icons.history), label: 'History'),

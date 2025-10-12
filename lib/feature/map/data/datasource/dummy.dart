@@ -18,8 +18,27 @@ class MapDummyData {
     // Create a single lock for backward compatibility
     final lockInfo = LockInfo(location: _defaultLockLocation);
 
+    // Create default receivers
+    final defaultReceivers = [
+      MapLocation(
+        latitude: -6.218987,
+        longitude: 106.801851,
+        lockStatus: "receiver",
+        timestamp: DateTime.now(),
+        deviceId: "RECEIVER_001",
+      ),
+      MapLocation(
+        latitude: -6.257766,
+        longitude: 106.891851,
+        lockStatus: "receiver",
+        timestamp: DateTime.now(),
+        deviceId: "RECEIVER_002",
+      ),
+    ];
+
     return MapData(
       locks: [lockInfo],
+      receivers: defaultReceivers, // NEW: Include receivers
       deviceLocation: null, // Device location now fetched from real GPS
       distanceInfo: "Calculating...",
       isTracking: false,
