@@ -15,8 +15,11 @@ class MapDummyData {
   // Removed _defaultDeviceLocation - now using real GPS for device location
 
   static MapData get initialMapData {
+    // Create a single lock for backward compatibility
+    final lockInfo = LockInfo(location: _defaultLockLocation);
+
     return MapData(
-      lockLocation: _defaultLockLocation,
+      locks: [lockInfo],
       deviceLocation: null, // Device location now fetched from real GPS
       distanceInfo: "Calculating...",
       isTracking: false,

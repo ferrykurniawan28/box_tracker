@@ -24,17 +24,27 @@ class MapCubit extends Cubit<MapState> {
     emit(MapLoading());
 
     try {
-      final lockLocation = await _mapRepository.fetchLockLocation();
+      final lockLocations = await _mapRepository.fetchLockLocations();
       final deviceLocation = await _mapRepository.fetchDeviceLocation();
 
-      final distanceInfo = _calculateDistance(
-        lockLocation,
-        deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
-      );
+      // Convert lock locations to LockInfo objects
+      final locks = lockLocations
+          .map((lockLocation) => LockInfo(
+                location: lockLocation,
+              ))
+          .toList();
 
-      // Create initial MapData
+      // Calculate distance to the nearest lock for display
+      final distanceInfo = locks.isNotEmpty
+          ? _calculateDistance(
+              locks.first.location,
+              deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
+            )
+          : "No locks available";
+
+      // Create initial MapData with multiple locks
       final mapData = MapData(
-        lockLocation: lockLocation,
+        locks: locks,
         deviceLocation: deviceLocation,
         distanceInfo: distanceInfo,
         isTracking: false,
@@ -43,7 +53,7 @@ class MapCubit extends Cubit<MapState> {
 
       emit(MapDataLoaded(mapData: mapData));
 
-      // Load routes automatically
+      // Load routes automatically for all locks
       await _loadRoutes();
     } catch (e) {
       emit(MapError(e.toString()));
@@ -54,22 +64,31 @@ class MapCubit extends Cubit<MapState> {
     try {
       final currentState = state;
       if (currentState is MapDataLoaded) {
-        final lockLocation = await _mapRepository.fetchLockLocation();
+        final lockLocations = await _mapRepository.fetchLockLocations();
         final deviceLocation = currentState.mapData.deviceLocation;
 
-        final distanceInfo = _calculateDistance(
-          lockLocation,
-          deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
-        );
+        // Convert to LockInfo objects
+        final locks = lockLocations
+            .map((lockLocation) => LockInfo(
+                  location: lockLocation,
+                ))
+            .toList();
+
+        final distanceInfo = locks.isNotEmpty
+            ? _calculateDistance(
+                locks.first.location,
+                deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
+              )
+            : "No locks available";
 
         emit(currentState.copyWith(
           mapData: currentState.mapData.copyWith(
-            lockLocation: lockLocation,
+            locks: locks,
             distanceInfo: distanceInfo,
           ),
         ));
 
-        // Reload routes when lock location changes
+        // Reload routes when lock locations change
         await _loadRoutes();
       }
     } catch (e) {
@@ -88,7 +107,7 @@ class MapCubit extends Cubit<MapState> {
         final deviceLocation = await _mapRepository.fetchDeviceLocation();
         final lockLocation = currentState.mapData.lockLocation;
 
-        final distanceInfo = _calculateDistance(lockLocation,
+        final distanceInfo = _calculateDistance(lockLocation!,
             deviceLocation ?? MapDummyData.initialMapData.deviceLocation!);
 
         emit(currentState.copyWith(
@@ -112,9 +131,10 @@ class MapCubit extends Cubit<MapState> {
     final deviceLatLng =
         LatLng(deviceLocation.latitude, deviceLocation.longitude);
 
+    // Calculate distance from device to lock (not receiver to lock)
     final distance = Distance().as(
       LengthUnit.Kilometer,
-      receiverLocation,
+      deviceLatLng,
       lockLatLng,
     );
 
@@ -125,54 +145,79 @@ class MapCubit extends Cubit<MapState> {
     final currentState = state;
     if (currentState is! MapDataLoaded) return;
 
-    final lockLocation = currentState.mapData.lockLocation;
+    final locks = currentState.mapData.locks;
     final deviceLocation = currentState.mapData.deviceLocation;
 
+    // Set loading state
+    emit(currentState.copyWith(
+      mapData: currentState.mapData.copyWith(
+        isLoadingRoutes: true,
+      ),
+    ));
+
     try {
-      List<LatLng> deviceToLockRoute = [];
-      List<LatLng> receiverToLockRoute = [];
+      List<LockInfo> updatedLocks = [];
 
-      // Get route from receiver to lock location (always available)
-      final lockLatLng = LatLng(lockLocation.latitude, lockLocation.longitude);
-      try {
-        final receiverRoute = await _osrmService.getRoute(
-          start: receiverLocation,
-          end: lockLatLng,
-        );
-        receiverToLockRoute = receiverRoute.routes.first.polylinePoints;
-      } catch (e) {
-        print("Error getting receiver route: $e");
-      }
+      // Calculate routes for each lock
+      for (final lockInfo in locks) {
+        List<LatLng> deviceToLockRoute = [];
+        List<LatLng> receiverToLockRoute = [];
 
-      // Get route from device to lock location (if device location is available)
-      if (deviceLocation != null) {
+        final lockLatLng =
+            LatLng(lockInfo.location.latitude, lockInfo.location.longitude);
+
+        // Get route from receiver to this lock location
         try {
-          final deviceLatLng =
-              LatLng(deviceLocation.latitude, deviceLocation.longitude);
-          final deviceRoute = await _osrmService.getRoute(
-            start: deviceLatLng,
+          final receiverRoute = await _osrmService.getRoute(
+            start: receiverLocation,
             end: lockLatLng,
           );
-          deviceToLockRoute = deviceRoute.routes.first.polylinePoints;
+          receiverToLockRoute = receiverRoute.routes.first.polylinePoints;
         } catch (e) {
-          print("Error getting device route: $e");
+          print(
+              "Error getting receiver route to ${lockInfo.location.deviceId}: $e");
         }
-      }
 
-      //print list lat lng
-      print("Device to Lock Route: $deviceToLockRoute");
-      print("Receiver to Lock Route: $receiverToLockRoute");
+        // Get route from device to this lock location (if device location is available)
+        if (deviceLocation != null) {
+          try {
+            final deviceLatLng =
+                LatLng(deviceLocation.latitude, deviceLocation.longitude);
+            final deviceRoute = await _osrmService.getRoute(
+              start: deviceLatLng,
+              end: lockLatLng,
+            );
+            deviceToLockRoute = deviceRoute.routes.first.polylinePoints;
+          } catch (e) {
+            print(
+                "Error getting device route to ${lockInfo.location.deviceId}: $e");
+          }
+        }
 
-      // Update state with routes
-      emit(currentState.copyWith(
-        mapData: currentState.mapData.copyWith(
+        // Create updated lock info with routes
+        updatedLocks.add(lockInfo.copyWith(
           deviceToLockRoute: deviceToLockRoute,
           receiverToLockRoute: receiverToLockRoute,
+        ));
+      }
+
+      print("Loaded routes for ${updatedLocks.length} locks");
+
+      // Update state with locks containing routes and clear loading state
+      emit(currentState.copyWith(
+        mapData: currentState.mapData.copyWith(
+          locks: updatedLocks,
+          isLoadingRoutes: false,
         ),
       ));
     } catch (e) {
       print("Error loading routes: $e");
-      // Continue without routes if OSRM fails
+      // Clear loading state even on error
+      emit(currentState.copyWith(
+        mapData: currentState.mapData.copyWith(
+          isLoadingRoutes: false,
+        ),
+      ));
     }
   }
 
@@ -244,11 +289,11 @@ class MapCubit extends Cubit<MapState> {
     }
   }
 
-  Future<void> updateLockStatus(String status) async {
+  Future<void> updateLockStatus(String lockId, String status) async {
     try {
-      final success = await _mapRepository.updateLockStatus(status);
+      final success = await _mapRepository.updateLockStatus(lockId, status);
       if (success) {
-        // Refresh the lock location to get updated status
+        // Refresh the lock locations to get updated status
         await fetchLockLocation();
       }
     } catch (e) {

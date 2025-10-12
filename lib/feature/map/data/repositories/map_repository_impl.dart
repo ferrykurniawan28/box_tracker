@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:location/location.dart';
 import 'package:lockguard/feature/map/data/datasource/dummy.dart';
@@ -15,6 +14,49 @@ class MapRepositoryImpl implements MapRepository {
       true; // Switch between real and dummy data for LOCK only
   // Device location now always uses real GPS
   final Dio _dio = Dio();
+
+  @override
+  Future<List<MapLocation>> fetchLockLocations() async {
+    if (_useDummyData) {
+      // Generate multiple dummy locks for testing
+      final List<MapLocation> locks = [];
+
+      // Generate 3 dummy locks with different locations around Jakarta
+      final lockPositions = [
+        {"lat": -6.2088, "lng": 106.8456, "id": "LOCK_001", "status": "locked"},
+        {
+          "lat": -6.1751,
+          "lng": 106.8650,
+          "id": "LOCK_002",
+          "status": "unlocked"
+        },
+        {"lat": -6.2615, "lng": 106.7800, "id": "LOCK_003", "status": "locked"},
+      ];
+
+      for (int i = 0; i < lockPositions.length; i++) {
+        final pos = lockPositions[i];
+        locks.add(MapLocation(
+          latitude: pos["lat"] as double,
+          longitude: pos["lng"] as double,
+          lockStatus: pos["status"] as String,
+          timestamp: DateTime.now().subtract(Duration(minutes: i * 5)),
+          deviceId: pos["id"] as String,
+        ));
+      }
+
+      return locks;
+    } else {
+      // Real implementation would fetch multiple locks from Firebase
+      try {
+        // For now, return single lock in a list for compatibility
+        final singleLock = await fetchLockLocation();
+        return [singleLock];
+      } catch (e) {
+        // Return empty list on error
+        return [];
+      }
+    }
+  }
 
   @override
   Future<MapLocation> fetchLockLocation() async {
@@ -86,17 +128,19 @@ class MapRepositoryImpl implements MapRepository {
   }
 
   @override
-  Future<bool> updateLockStatus(String status) async {
-    // Simulate API call to update lock status
+  Future<bool> updateLockStatus(String lockId, String status) async {
+    // Simulate API call to update lock status for specific lock
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (_useDummyData) {
       // For dummy data, just return success
+      print("Updating lock $lockId to status: $status");
       return true;
     } else {
-      // Real implementation would call Firebase API
+      // Real implementation would call Firebase API with lockId
       try {
         // Implement actual Firebase update here
+        // Would update specific lock by lockId
         return true;
       } catch (e) {
         return false;
