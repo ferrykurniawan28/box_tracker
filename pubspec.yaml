@@ -32,9 +32,15 @@ dependencies:
   google_navigation_flutter: ^0.6.4
   dio: ^5.9.0
   flutter_polyline_points_plus: ^3.0.0
+  flutter_map_cache: ^1.5.0
+  path_provider: ^2.1.0
 
 dependency_overrides:
   webview_flutter_android: ^3.16.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/svgs/

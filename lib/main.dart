@@ -6,9 +6,26 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:lockguard/app/app_module.dart';
 import 'package:lockguard/app/app_widget.dart';
 import 'firebase_options.dart';
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Suppress network image errors (for offline map tiles)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Only suppress specific network/socket errors for map tiles
+    if (details.exception is SocketException ||
+        details.exception is HttpException ||
+        details.exception.toString().contains('Failed host lookup') ||
+        details.exception.toString().contains('tile.openstreetmap.org') ||
+        details.exception.toString().contains('fonts.gstatic.com')) {
+      // Silently ignore these errors - app will work without map tiles/fonts
+      debugPrint('Network error suppressed: ${details.exception}');
+    } else {
+      // For other errors, show them in debug mode
+      FlutterError.presentError(details);
+    }
+  };
 
   // Initialize Firebase with the options for your platform
   await Firebase.initializeApp(

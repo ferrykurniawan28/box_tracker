@@ -378,6 +378,11 @@ class _MapPageState extends State<MapPage> {
 
     return Stack(
       children: [
+        // Gray background for when tiles fail to load
+        Container(
+          color: Colors.grey[200],
+        ),
+
         // Enhanced Map with better tile layer
         FlutterMap(
           mapController: _mapController,
@@ -403,11 +408,15 @@ class _MapPageState extends State<MapPage> {
             },
           ),
           children: [
-            // Enhanced map tiles with multiple options
+            // Enhanced map tiles with error handling for offline use
             TileLayer(
               urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               subdomains: const ['a', 'b', 'c'],
               userAgentPackageName: 'com.lockguard.app',
+              maxNativeZoom: 19,
+              maxZoom: 19,
+              // Tiles will fail gracefully if offline - map will still show markers and routes
+              tileProvider: NetworkTileProvider(),
             ),
 
             // Polylines (routes)
