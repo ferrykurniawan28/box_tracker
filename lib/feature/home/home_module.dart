@@ -1,5 +1,6 @@
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lockguard/feature/profile/presentation/pages/profile.dart';
 import 'presentation/pages/home.dart';
 import 'presentation/cubit/home_cubit.dart';
 import 'package:lockguard/feature/map/presentation/pages/map.dart';
@@ -9,6 +10,7 @@ import 'package:lockguard/feature/map/presentation/cubit/history/history_cubit.d
 import 'package:lockguard/feature/map/presentation/cubit/routing/routing_cubit.dart';
 import 'package:lockguard/feature/map/domain/repositories/map_repository.dart';
 import 'package:lockguard/core/services/osrm_services.dart';
+import 'package:lockguard/feature/auth/presentation/cubit/auth_cubit.dart';
 
 class HomeModule extends Module {
   @override
@@ -40,6 +42,11 @@ class HomeModule extends Module {
               child: (context) => BlocProvider(
                     create: (_) => Modular.get<HistoryCubit>(),
                     child: const HistoryPage(),
+                  )),
+          ChildRoute('/profile',
+              child: (context) => BlocProvider.value(
+                    value: Modular.get<AuthCubit>(),
+                    child: const ProfilePage(),
                   )),
         ]);
   }

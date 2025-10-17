@@ -59,6 +59,8 @@ class HistoryEntry {
   final String distance;
   final DateTime timestamp;
   final String? deviceId; // Device identifier for tracking
+  final bool isAuthorized; // Whether the unlock attempt was authorized
+  final String? imagePath; // Path to success/failed image
 
   HistoryEntry({
     required this.location,
@@ -67,15 +69,19 @@ class HistoryEntry {
     required this.distance,
     required this.timestamp,
     this.deviceId,
+    this.isAuthorized = true, // Default to authorized for locked status
+    this.imagePath,
   });
 
-  Map<String, String> toMap() {
+  Map<String, dynamic> toMap() {
     return {
       'location': location,
       'lockStatus': lockStatus,
       'lastUpdated': lastUpdated,
       'distance': distance,
       'deviceId': deviceId ?? '',
+      'isAuthorized': isAuthorized,
+      'imagePath': imagePath ?? '',
     };
   }
 }

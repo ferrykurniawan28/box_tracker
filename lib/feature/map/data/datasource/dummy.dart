@@ -77,6 +77,20 @@ class MapDummyData {
     };
   }
 
+  // Helper method to get random success or failed image path
+  static String getRandomUnlockImage(bool isAuthorized) {
+    final random = Random();
+    if (isAuthorized) {
+      // Success images (1-4)
+      final imageNumber = random.nextInt(4) + 1;
+      return 'assets/images/sucess-$imageNumber.jpeg';
+    } else {
+      // Failed/intruder images (1-4)
+      final imageNumber = random.nextInt(4) + 1;
+      return 'assets/images/failed-$imageNumber.jpeg';
+    }
+  }
+
   static String calculateDistance(
       MapLocation lockLocation, MapLocation deviceLocation) {
     // Simple distance calculation (approximate)

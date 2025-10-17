@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:lockguard/feature/auth/presentation/cubit/auth_cubit.dart';
 import '../cubit/home_cubit.dart';
 
 class HomePage extends StatefulWidget {
@@ -42,7 +41,7 @@ class _HomePageState extends State<HomePage> {
                   ReadContext(context).read<HomeCubit>().changeTab(1);
                   break;
                 case 2:
-                  Modular.to.navigate('/home/account');
+                  Modular.to.navigate('/home/profile');
                   ReadContext(context).read<HomeCubit>().changeTab(2);
                   break;
                 // case 3:

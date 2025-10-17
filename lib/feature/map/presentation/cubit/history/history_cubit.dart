@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:bloc/bloc.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../domain/repositories/map_repository.dart';
@@ -75,17 +76,52 @@ class HistoryCubit extends Cubit<HistoryState> {
 
         final locationInfo =
             "Latitude: ${lockLocation.latitude}, Longitude: ${lockLocation.longitude}";
-        final lockStatus = lockLocation.lockStatus;
+        final originalLockStatus = lockLocation.lockStatus;
         final lastUpdated = DateTime.now().toLocal().toString().split('.')[0];
+
+        // Randomly determine if unlock attempt is authorized or not
+        final random = Random();
+
+        // Randomly simulate unlock attempts (33% authorized, 33% unauthorized, 33% no attempt)
+        final attemptType = random.nextInt(3);
+        // 0 = authorized unlock attempt
+        // 1 = unauthorized unlock attempt
+        // 2 = no attempt (stay as is)
+
+        // Determine the display status and image
+        String displayLockStatus;
+        String? imagePath;
+        bool isAuthorized;
+
+        if (attemptType == 0) {
+          // Authorized unlock attempt - SUCCESS
+          displayLockStatus = "unlocked";
+          isAuthorized = true;
+          final successImageNumber = random.nextInt(4) + 1;
+          imagePath = 'assets/images/sucess-$successImageNumber.jpeg';
+        } else if (attemptType == 1) {
+          // Unauthorized unlock attempt - FAILED (lock stays locked, capture intruder)
+          displayLockStatus = "locked";
+          isAuthorized = false;
+          final failedImageNumber = random.nextInt(4) + 1;
+          imagePath = 'assets/images/failed-$failedImageNumber.jpeg';
+        } else {
+          // No unlock attempt - keep current status
+          displayLockStatus = originalLockStatus;
+          isAuthorized = true;
+          imagePath = null;
+        }
 
         // Create new history entry
         final newEntry = HistoryEntry(
           location: locationInfo,
-          lockStatus: lockStatus,
+          lockStatus: displayLockStatus,
           lastUpdated: lastUpdated,
           distance: distanceInfo,
           timestamp: DateTime.now(),
           deviceId: lockLocation.deviceId, // Include device ID for tracking
+          isAuthorized: isAuthorized,
+          imagePath: imagePath,
         );
 
         // Add to history (insert at beginning for latest first)
@@ -94,7 +130,7 @@ class HistoryCubit extends Cubit<HistoryState> {
         emit(currentState.copyWith(
           historyData: updatedHistory,
           locationInfo: locationInfo,
-          lockStatus: lockStatus,
+          lockStatus: displayLockStatus,
           lastUpdated: lastUpdated,
           distanceInfo: distanceInfo,
         ));

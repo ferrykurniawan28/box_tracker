@@ -157,41 +157,53 @@ class _HistoryPageState extends State<HistoryPage> {
                                             : Icons.lock_open,
                                         color: entry.lockStatus.toLowerCase() ==
                                                 "locked"
-                                            ? Colors.green
-                                            : Colors.red,
+                                            ? (entry.imagePath != null
+                                                ? Colors.red
+                                                : Colors.green)
+                                            : Colors.blue,
                                         size: 18,
                                       ),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        "Lock Status: ${entry.lockStatus}",
-                                        style: TextStyle(
-                                          color:
-                                              entry.lockStatus.toLowerCase() ==
-                                                      "locked"
-                                                  ? Colors.green
-                                                  : Colors.red,
-                                          fontWeight: FontWeight.w500,
+                                      Expanded(
+                                        child: Text(
+                                          entry.lockStatus.toLowerCase() ==
+                                                  "locked"
+                                              ? (entry.imagePath != null
+                                                  ? "Lock Status: Locked (Unauthorized Attempt Blocked)"
+                                                  : "Lock Status: ${entry.lockStatus}")
+                                              : "Lock Status: ${entry.lockStatus} (Authorized)",
+                                          style: TextStyle(
+                                            color: entry.lockStatus
+                                                        .toLowerCase() ==
+                                                    "locked"
+                                                ? (entry.imagePath != null
+                                                    ? Colors.red
+                                                    : Colors.green)
+                                                : Colors.blue,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
 
-                                  // Show image and alert for ALL unlocked entries
-                                  if (entry.lockStatus.toLowerCase() ==
-                                      "unlocked") ...[
+                                  // Show image and alert for entries with images (authorized unlock or unauthorized attempt)
+                                  if (entry.imagePath != null) ...[
                                     const SizedBox(height: 12),
                                     Container(
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: Colors.red.shade300,
+                                          color: entry.isAuthorized
+                                              ? Colors.blue.shade300
+                                              : Colors.red.shade300,
                                           width: 2,
                                         ),
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(6),
                                         child: Image.asset(
-                                          'assets/images/face.jpg',
+                                          entry.imagePath!,
                                           width: double.infinity,
                                           height: 200,
                                           fit: BoxFit.cover,
@@ -230,26 +242,38 @@ class _HistoryPageState extends State<HistoryPage> {
                                         vertical: 8,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.red.shade50,
+                                        color: entry.isAuthorized
+                                            ? Colors.blue.shade50
+                                            : Colors.red.shade50,
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
-                                          color: Colors.red.shade200,
+                                          color: entry.isAuthorized
+                                              ? Colors.blue.shade200
+                                              : Colors.red.shade200,
                                           width: 1,
                                         ),
                                       ),
                                       child: Row(
                                         children: [
                                           Icon(
-                                            Icons.warning_amber_rounded,
-                                            color: Colors.red.shade700,
+                                            entry.isAuthorized
+                                                ? Icons.check_circle_outline
+                                                : Icons.warning_amber_rounded,
+                                            color: entry.isAuthorized
+                                                ? Colors.blue.shade700
+                                                : Colors.red.shade700,
                                             size: 20,
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              'Alert: Unauthorized access detected',
+                                              entry.isAuthorized
+                                                  ? 'Success: Authorized access granted'
+                                                  : 'Alert: Unauthorized access detected - Intruder!',
                                               style: TextStyle(
-                                                color: Colors.red.shade700,
+                                                color: entry.isAuthorized
+                                                    ? Colors.blue.shade700
+                                                    : Colors.red.shade700,
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 13,
                                               ),
