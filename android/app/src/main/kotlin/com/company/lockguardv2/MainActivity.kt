@@ -1,4 +1,4 @@
-package com.example.box_tracker
+package com.company.lockguardv2
 
 import io.flutter.embedding.android.FlutterActivity
 
