@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lockguard.box_tracker"
+    namespace = "com.company.lockguardv2"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -22,10 +22,10 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.lockguard.box_tracker"
+        applicationId = "com.company.lockguardv2"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21 // Updated for better compatibility
+        minSdk = 23 // Required for google_navigation_flutter
         targetSdk = flutter.targetSdkVersion
         versionCode = 1
         versionName = "1.0.0"
