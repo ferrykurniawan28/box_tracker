@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "120341177152",
+    "firebase_url": "https://lockguardv2-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "lockguardv2",
+    "storage_bucket": "lockguardv2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:120341177152:android:91f7eca8cebadb67bf50a5",
+        "android_client_info": {
+          "package_name": "com.company.lockguardv2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8lbjO3zdKs3V86m3v62McqjXymdg1OlY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
