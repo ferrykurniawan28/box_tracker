@@ -9,4 +9,8 @@ abstract class MapRepository {
   Future<MapLocation?> fetchDeviceLocation();
   Future<bool> updateLockStatus(
       String lockId, String status); // Added lockId parameter
+  Future<List<MapLocation>> fetchLockHistory(String lockId,
+      {int limit}); // NEW: Fetch history for a specific lock
+  Future<List<MapLocation>> fetchAllHistory(
+      {int limitPerLock}); // NEW: Fetch history for all locks
 }

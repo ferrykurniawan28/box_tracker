@@ -1,127 +1,63 @@
-import 'package:dio/dio.dart';
 import 'package:location/location.dart';
-import 'package:lockguard/feature/map/data/datasource/dummy.dart';
+import 'package:lockguard/feature/map/data/datasource/firebase_service.dart';
 import '../../domain/repositories/map_repository.dart';
 import '../models/map_location.dart';
 
 class MapRepositoryImpl implements MapRepository {
-  final String _firebaseUrl =
-      "https://gps-lock-application-default-rtdb.asia-southeast1.firebasedatabase.app/gps.json";
+  final FirebaseService _firebaseService = FirebaseService();
   final Location _location = Location();
-  // TODO: Enable real Firebase data by setting this to false
-  // TODO: Test Firebase connectivity and data format
-  final bool _useDummyData =
-      true; // Switch between real and dummy data for LOCK only
-  // Device location now always uses real GPS
-  final Dio _dio = Dio();
 
   @override
   Future<List<MapLocation>> fetchLockLocations() async {
-    if (_useDummyData) {
-      // Generate multiple dummy locks for testing
-      final List<MapLocation> locks = [];
+    try {
+      // Fetch all locks from Firebase
+      final locks = await _firebaseService.fetchLocks();
 
-      // Generate 3 dummy locks with different locations around Jakarta
-      final lockPositions = [
-        {"lat": -6.2088, "lng": 106.8456, "id": "LOCK_001", "status": "locked"},
-        {
-          "lat": -6.1751,
-          "lng": 106.8650,
-          "id": "LOCK_002",
-          "status": "unlocked"
-        },
-        {"lat": -6.2615, "lng": 106.7800, "id": "LOCK_003", "status": "locked"},
-      ];
-
-      for (int i = 0; i < lockPositions.length; i++) {
-        final pos = lockPositions[i];
-        locks.add(MapLocation(
-          latitude: pos["lat"] as double,
-          longitude: pos["lng"] as double,
-          lockStatus: pos["status"] as String,
-          timestamp: DateTime.now().subtract(Duration(minutes: i * 5)),
-          deviceId: pos["id"] as String,
-        ));
+      if (locks.isEmpty) {
+        print('No locks found in Firebase');
       }
 
       return locks;
-    } else {
-      // Real implementation would fetch multiple locks from Firebase
-      try {
-        // For now, return single lock in a list for compatibility
-        final singleLock = await fetchLockLocation();
-        return [singleLock];
-      } catch (e) {
-        // Return empty list on error
-        return [];
-      }
+    } catch (e) {
+      print('Error fetching lock locations: $e');
+      // Return empty list on error instead of dummy data
+      return [];
     }
   }
 
   @override
   Future<List<MapLocation>> fetchReceiverLocations() async {
-    if (_useDummyData) {
-      // Generate multiple dummy receivers for testing
-      final List<MapLocation> receivers = [];
+    try {
+      // Fetch all receivers from Firebase
+      final receivers = await _firebaseService.fetchReceivers();
 
-      // Generate 2 dummy receivers with different locations around Jakarta
-      final receiverPositions = [
-        {"lat": -6.218987, "lng": 106.801851, "id": "RECEIVER_001"},
-        {"lat": -6.200000, "lng": 106.816666, "id": "RECEIVER_002"},
-      ];
-
-      for (int i = 0; i < receiverPositions.length; i++) {
-        final pos = receiverPositions[i];
-        receivers.add(MapLocation(
-          latitude: pos["lat"] as double,
-          longitude: pos["lng"] as double,
-          lockStatus: "receiver", // Identify as receiver
-          timestamp: DateTime.now().subtract(Duration(minutes: i * 2)),
-          deviceId: pos["id"] as String,
-        ));
+      if (receivers.isEmpty) {
+        print('No receivers found in Firebase');
       }
 
       return receivers;
-    } else {
-      // Real implementation would fetch multiple receivers from Firebase
-      try {
-        // For now, return single hardcoded receiver for compatibility
-        final receiver = MapLocation(
-          latitude: -6.218987,
-          longitude: 106.801851,
-          lockStatus: "receiver",
-          timestamp: DateTime.now(),
-          deviceId: "RECEIVER_001",
-        );
-        return [receiver];
-      } catch (e) {
-        // Return empty list on error
-        return [];
-      }
+    } catch (e) {
+      print('Error fetching receiver locations: $e');
+      // Return empty list on error instead of dummy data
+      return [];
     }
   }
 
   @override
   Future<MapLocation> fetchLockLocation() async {
-    if (_useDummyData) {
-      // Use dummy data
-      final dummyData = await MapDummyData.generateDummyFirebaseData();
-      return MapLocation.fromJson(dummyData);
-    } else {
-      // Use real Firebase data
-      try {
-        final response = await _dio.get(_firebaseUrl);
-        if (response.statusCode == 200) {
-          final data = response.data;
-          return MapLocation.fromJson(data);
-        } else {
-          throw Exception('Failed to fetch location: ${response.statusCode}');
-        }
-      } catch (e) {
-        // Fallback to dummy data on error
-        final dummyData = await MapDummyData.generateDummyFirebaseData();
-        return MapLocation.fromJson(dummyData);
+    try {
+      // Fetch all locks and return the first one for backward compatibility
+      final locks = await _firebaseService.fetchLocks();
+
+      if (locks.isEmpty) {
+        throw Exception('No locks found in Firebase');
       }
+
+      // Return the first lock
+      return locks.first;
+    } catch (e) {
+      print('Error fetching lock location: $e');
+      rethrow;
     }
   }
 
@@ -172,22 +108,33 @@ class MapRepositoryImpl implements MapRepository {
 
   @override
   Future<bool> updateLockStatus(String lockId, String status) async {
-    // Simulate API call to update lock status for specific lock
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      // Call Firebase service to update lock status
+      return await _firebaseService.updateLockStatus(lockId, status);
+    } catch (e) {
+      print('Error updating lock status: $e');
+      return false;
+    }
+  }
 
-    if (_useDummyData) {
-      // For dummy data, just return success
-      print("Updating lock $lockId to status: $status");
-      return true;
-    } else {
-      // Real implementation would call Firebase API with lockId
-      try {
-        // Implement actual Firebase update here
-        // Would update specific lock by lockId
-        return true;
-      } catch (e) {
-        return false;
-      }
+  @override
+  Future<List<MapLocation>> fetchLockHistory(String lockId,
+      {int limit = 50}) async {
+    try {
+      return await _firebaseService.fetchLockHistory(lockId, limit: limit);
+    } catch (e) {
+      print('Error fetching lock history: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<MapLocation>> fetchAllHistory({int limitPerLock = 20}) async {
+    try {
+      return await _firebaseService.fetchAllHistory(limitPerLock: limitPerLock);
+    } catch (e) {
+      print('Error fetching all history: $e');
+      return [];
     }
   }
 }

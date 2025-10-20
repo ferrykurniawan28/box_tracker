@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:lockguard/feature/map/data/datasource/dummy.dart';
 import 'package:lockguard/core/services/osrm_services.dart';
 import '../../../domain/repositories/map_repository.dart';
 import '../../../data/models/map_location.dart';
@@ -14,9 +13,6 @@ class MapCubit extends Cubit<MapState> {
   final OSRMService _osrmService;
   Timer? _trackingTimer;
   Timer? _countdownTimer;
-
-  // TODO: Remove this hardcoded receiver - now using dynamic receivers
-  // static const LatLng receiverLocation = LatLng(-6.218987, 106.801851);
 
   MapCubit(this._mapRepository, this._osrmService) : super(MapInitial());
 
@@ -37,12 +33,14 @@ class MapCubit extends Cubit<MapState> {
           .toList();
 
       // Calculate distance to the nearest lock for display
-      final distanceInfo = locks.isNotEmpty
-          ? _calculateDistance(
-              locks.first.location,
-              deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
-            )
-          : "No locks available";
+      String distanceInfo;
+      if (locks.isEmpty) {
+        distanceInfo = "No locks available";
+      } else if (deviceLocation == null) {
+        distanceInfo = "Waiting for device location...";
+      } else {
+        distanceInfo = _calculateDistance(locks.first.location, deviceLocation);
+      }
 
       // Create initial MapData with multiple locks and receivers
       final mapData = MapData(
@@ -77,12 +75,15 @@ class MapCubit extends Cubit<MapState> {
                 ))
             .toList();
 
-        final distanceInfo = locks.isNotEmpty
-            ? _calculateDistance(
-                locks.first.location,
-                deviceLocation ?? MapDummyData.initialMapData.deviceLocation!,
-              )
-            : "No locks available";
+        String distanceInfo;
+        if (locks.isEmpty) {
+          distanceInfo = "No locks available";
+        } else if (deviceLocation == null) {
+          distanceInfo = "Waiting for device location...";
+        } else {
+          distanceInfo =
+              _calculateDistance(locks.first.location, deviceLocation);
+        }
 
         emit(currentState.copyWith(
           mapData: currentState.mapData.copyWith(
@@ -99,10 +100,6 @@ class MapCubit extends Cubit<MapState> {
     }
   }
 
-  // TODO: Implement real device GPS location using location package
-  // TODO: Add location permissions handling (location.requestPermission())
-  // TODO: Use Location().getLocation() to get actual device coordinates
-  // TODO: Handle location service enabling and permission status
   Future<void> fetchDeviceLocation() async {
     try {
       final currentState = state;
@@ -110,8 +107,14 @@ class MapCubit extends Cubit<MapState> {
         final deviceLocation = await _mapRepository.fetchDeviceLocation();
         final lockLocation = currentState.mapData.lockLocation;
 
-        final distanceInfo = _calculateDistance(lockLocation!,
-            deviceLocation ?? MapDummyData.initialMapData.deviceLocation!);
+        String distanceInfo;
+        if (lockLocation == null) {
+          distanceInfo = "No lock selected";
+        } else if (deviceLocation == null) {
+          distanceInfo = "Waiting for device location...";
+        } else {
+          distanceInfo = _calculateDistance(lockLocation, deviceLocation);
+        }
 
         emit(currentState.copyWith(
           mapData: currentState.mapData.copyWith(

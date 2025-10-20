@@ -20,15 +20,66 @@ class HistoryCubit extends Cubit<HistoryState> {
     emit(HistoryLoading());
 
     try {
-      // Initialize with empty history data
+      // Fetch all history from Firebase
+      final allHistory = await _mapRepository.fetchAllHistory(limitPerLock: 20);
+
+      // Convert MapLocation history to HistoryEntry
+      final historyEntries = allHistory.map((location) {
+        // Calculate distance if we have device location
+        String distanceInfo = "Calculating...";
+        if (_currentDeviceLocation != null) {
+          final lockLatLng = LatLng(location.latitude, location.longitude);
+          final distance = Distance().as(
+            LengthUnit.Kilometer,
+            _currentDeviceLocation!,
+            lockLatLng,
+          );
+          distanceInfo = "Distance: ${distance.toStringAsFixed(2)} km";
+        }
+
+        final locationInfo =
+            "Latitude: ${location.latitude}, Longitude: ${location.longitude}";
+
+        // Determine if there's an image path (for unlocked status)
+        String? imagePath;
+        bool isAuthorized = true;
+
+        // If unlocked, show facial recognition image
+        if (location.lockStatus == "unlocked") {
+          // Use random image for now - in production, this would come from Firebase
+          final random = Random();
+          final imageNumber = random.nextInt(4) + 1;
+          imagePath = 'assets/images/sucess-$imageNumber.jpeg';
+          isAuthorized = true;
+        }
+
+        return HistoryEntry(
+          location: locationInfo,
+          lockStatus: location.lockStatus,
+          lastUpdated: location.timestamp.toLocal().toString().split('.')[0],
+          distance: distanceInfo,
+          timestamp: location.timestamp,
+          deviceId: location.deviceId,
+          isAuthorized: isAuthorized,
+          imagePath: imagePath,
+        );
+      }).toList();
+
       emit(HistoryLoaded(
-        historyData: [],
+        historyData: historyEntries,
         isAutoUpdating: false,
         countdown: 0,
-        locationInfo: "Waiting for location...",
-        lockStatus: "Unknown",
-        lastUpdated: "Never",
-        distanceInfo: "Calculating...",
+        locationInfo: historyEntries.isNotEmpty
+            ? historyEntries.first.location
+            : "No history",
+        lockStatus: historyEntries.isNotEmpty
+            ? historyEntries.first.lockStatus
+            : "Unknown",
+        lastUpdated: historyEntries.isNotEmpty
+            ? historyEntries.first.lastUpdated
+            : "Never",
+        distanceInfo:
+            historyEntries.isNotEmpty ? historyEntries.first.distance : "N/A",
       ));
 
       // Get current device location from GPS for distance calculation
@@ -55,7 +106,7 @@ class HistoryCubit extends Cubit<HistoryState> {
     try {
       final currentState = state;
       if (currentState is HistoryLoaded) {
-        // Fetch lock location from repository (same as map feature)
+        // Fetch latest lock location from repository
         final lockLocation = await _mapRepository.fetchLockLocation();
 
         // Update current device location for distance calculation
@@ -76,61 +127,57 @@ class HistoryCubit extends Cubit<HistoryState> {
 
         final locationInfo =
             "Latitude: ${lockLocation.latitude}, Longitude: ${lockLocation.longitude}";
-        final originalLockStatus = lockLocation.lockStatus;
+        final lockStatus = lockLocation.lockStatus;
         final lastUpdated = DateTime.now().toLocal().toString().split('.')[0];
 
-        // Randomly determine if unlock attempt is authorized or not
-        final random = Random();
-
-        // Randomly simulate unlock attempts (33% authorized, 33% unauthorized, 33% no attempt)
-        final attemptType = random.nextInt(3);
-        // 0 = authorized unlock attempt
-        // 1 = unauthorized unlock attempt
-        // 2 = no attempt (stay as is)
-
-        // Determine the display status and image
-        String displayLockStatus;
+        // Determine if there's an image path (for unlocked status)
         String? imagePath;
-        bool isAuthorized;
+        bool isAuthorized = true;
 
-        if (attemptType == 0) {
-          // Authorized unlock attempt - SUCCESS
-          displayLockStatus = "unlocked";
+        // If unlocked, show facial recognition image
+        if (lockStatus == "unlocked") {
+          // Use random image for now - in production, this would come from Firebase
+          final random = Random();
+          final imageNumber = random.nextInt(4) + 1;
+          imagePath = 'assets/images/sucess-$imageNumber.jpeg';
           isAuthorized = true;
-          final successImageNumber = random.nextInt(4) + 1;
-          imagePath = 'assets/images/sucess-$successImageNumber.jpeg';
-        } else if (attemptType == 1) {
-          // Unauthorized unlock attempt - FAILED (lock stays locked, capture intruder)
-          displayLockStatus = "locked";
-          isAuthorized = false;
-          final failedImageNumber = random.nextInt(4) + 1;
-          imagePath = 'assets/images/failed-$failedImageNumber.jpeg';
-        } else {
-          // No unlock attempt - keep current status
-          displayLockStatus = originalLockStatus;
-          isAuthorized = true;
-          imagePath = null;
         }
 
-        // Create new history entry
+        // Create new history entry from real Firebase data
         final newEntry = HistoryEntry(
           location: locationInfo,
-          lockStatus: displayLockStatus,
+          lockStatus: lockStatus,
           lastUpdated: lastUpdated,
           distance: distanceInfo,
-          timestamp: DateTime.now(),
-          deviceId: lockLocation.deviceId, // Include device ID for tracking
+          timestamp: lockLocation.timestamp,
+          deviceId: lockLocation.deviceId,
           isAuthorized: isAuthorized,
           imagePath: imagePath,
         );
 
-        // Add to history (insert at beginning for latest first)
-        final updatedHistory = [newEntry, ...currentState.historyData];
+        // Check if this entry is different from the last one to avoid duplicates
+        bool isDifferent = true;
+        if (currentState.historyData.isNotEmpty) {
+          final lastEntry = currentState.historyData.first;
+          // Compare key fields to determine if it's a new event
+          isDifferent = lastEntry.lockStatus != newEntry.lockStatus ||
+              lastEntry.location != newEntry.location ||
+              lastEntry.timestamp
+                      .difference(newEntry.timestamp)
+                      .inSeconds
+                      .abs() >
+                  5;
+        }
+
+        // Only add if it's different from the last entry
+        final updatedHistory = isDifferent
+            ? [newEntry, ...currentState.historyData]
+            : currentState.historyData;
 
         emit(currentState.copyWith(
           historyData: updatedHistory,
           locationInfo: locationInfo,
-          lockStatus: displayLockStatus,
+          lockStatus: lockStatus,
           lastUpdated: lastUpdated,
           distanceInfo: distanceInfo,
         ));
